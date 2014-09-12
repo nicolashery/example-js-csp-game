@@ -1,0 +1,35 @@
+{
+  "name": "example-js-csp-game",
+  "version": "0.1.0",
+  "dependencies": {
+    "js-csp": "jlongster/js-csp",
+    "mousetrap": "0.0.1",
+    "react": "^0.11.1"
+  },
+  "devDependencies": {
+    "css-loader": "^0.8.0",
+    "file-loader": "^0.7.2",
+    "gulp": "^3.8.8",
+    "gulp-jshint": "^1.8.4",
+    "http-server": "^0.7.0",
+    "jshint-stylish": "^0.4.0",
+    "regenerator-loader": "^1.0.0",
+    "shelljs": "^0.3.0",
+    "style-loader": "^0.8.0",
+    "webpack": "^1.4.0-beta5",
+    "webpack-dev-server": "^1.6.4"
+  },
+  "engines": {
+    "node": "0.10.x"
+  },
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack-dev-server --devtool source-map --cache --colors --progress",
+    "build": "node build",
+    "server": "http-server ./dist",
+    "jshint": "gulp jshint",
+    "jshint-watch": "gulp jshint-watch",
+    "gh-pages": "node ghpages"
+  }
+}
