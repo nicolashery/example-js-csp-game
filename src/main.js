@@ -119,7 +119,8 @@ function pinkieChan() {
       id: 'pinkie',
       baseY: 276,
       x: 0, y: 0,
-      vx: 0, vy: 0
+      vx: 0, vy: 0,
+      gameOver: false
     };
     var p = initialPinkie;
     var open = true;
@@ -129,20 +130,37 @@ function pinkieChan() {
       if (v.channel === tickCh) {
         p = velocity(p);
 
-        // Apply gravity to Pinkie's velocity.
-        p.vy += 0.98;
-
-        // AS Pinkie Pie,
-        // GIVEN that I'm falling
-        // WHEN I hit the ground
-        // THEN I stop.
-        if (p.y >= 0 && p.vy > 0) {
-          p.y = 0; p.vy = 0;
+        // If Pinkie touches the hater, game over!
+        if (intersects('hater', 'pinkie')) {
+          p.gameOver = true;
+          p.id = 'pinkie gameover';
+          new Audio(require('./sfx/gameover.mp3')).play();
+          p.vy = -15;
         }
 
-        p.id = (p.y < 0) ? 'pinkie jumping' : 'pinkie';
+        if (p.gameOver) {
+          p.vy += 0.5;
+        }
+        else {
+          // Apply gravity to Pinkie's velocity.
+          p.vy += 0.98;
+
+          // AS Pinkie Pie,
+          // GIVEN that I'm falling
+          // WHEN I hit the ground
+          // THEN I stop.
+          if (p.y >= 0 && p.vy > 0) {
+            p.y = 0; p.vy = 0;
+          }
+
+          p.id = (p.y < 0) ? 'pinkie jumping' : 'pinkie';
+        }
 
         open = yield put(ch, p);
+        if (!open) {
+          spaceCh.close();
+          tickCh.close();
+        }
       }
 
       else if (v.channel === spaceCh) {
@@ -151,11 +169,6 @@ function pinkieChan() {
           p.vy = -20;
           new Audio(require('./sfx/jump.mp3')).play();
         }
-      }
-
-      if (!open) {
-        spaceCh.close();
-        tickCh.close();
       }
     }
   });
@@ -172,7 +185,6 @@ function coinChan() {
       vx: -6, vy: 0
     };
     var c = initialCoin;
-    var p;
     var open = true;
     while(open) {
       yield take(tickCh);
@@ -193,7 +205,33 @@ function coinChan() {
       c = onscreen(c) ? c : initialCoin;
 
       open = yield put(ch, c);
+      if (!open) {
+        tickCh.close();
+      }
+    }
+  });
+  return ch;
+}
 
+function haterChan() {
+  var ch = chan();
+  var tickCh = tickChan();
+  go(function*() {
+    var initialHater = {
+      id: 'hater',
+      x: 1600, y: 300,
+      vx: -8, vy: 0
+    };
+    var h = initialHater;
+    var open = true;
+    while(open) {
+      yield take(tickCh);
+      h = velocity(h);
+
+      // If hater is offscreen, reset it
+      h = onscreen(h) ? h : initialHater;
+
+      open = yield put(ch, h);
       if (!open) {
         tickCh.close();
       }
@@ -228,16 +266,14 @@ function main() {
   var groundCh = groundChan();
   var pinkieCh = pinkieChan();
   var coinCh = coinChan();
+  var haterCh = haterChan();
   var timeoutCh = timeout(100000);
   go(function*() {
     var stop = false;
     var state = {};
     while(!stop) {
-      var v = yield alts([timeoutCh, groundCh, pinkieCh, coinCh]);
+      var v = yield alts([timeoutCh, groundCh, pinkieCh, coinCh, haterCh]);
       if (v.channel === timeoutCh) {
-        coinCh.close();
-        pinkieCh.close();
-        groundCh.close();
         stop = true;
       }
       else {
@@ -246,13 +282,24 @@ function main() {
         }
         else if (v.channel === pinkieCh) {
           state.pinkie = v.value;
+          if (!onscreen(state.pinkie)) {
+            stop = true;
+          }
         }
         else if (v.channel === coinCh) {
           state.coin = v.value;
         }
+        else if (v.channel === haterCh) {
+          state.hater = v.value;
+        }
         renderScene(state);
       }
     }
+
+    haterCh.close();
+    coinCh.close();
+    pinkieCh.close();
+    groundCh.close();
   });
 }
 
