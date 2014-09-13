@@ -44,3 +44,19 @@
 .pinkie.gameover {
   background: url(gfx/pie-oops.gif) !important;
 }
+
+.hater {
+  position: absolute;
+  width: 150px;
+  height: 113px;
+  left: -512px;
+  background: url(gfx/trollface.gif);
+}
+
+.coin {
+  position: absolute;
+  width: 128px;
+  height: 128px;
+  left: -512px;
+  background: url(gfx/coin.gif);
+}

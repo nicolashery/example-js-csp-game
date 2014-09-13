@@ -19,6 +19,34 @@ function bindKey(key, ch) {
   return ch;
 }
 
+function onscreen(node) {
+  return !(node.x < -300 || node.y < -1000 || node.y > 1000);
+}
+
+function bounds(node) {
+  var b = { x1: node.offsetLeft, y1: node.offsetTop };
+  b.x2 = b.x1 + node.offsetWidth;
+  b.y2 = b.y1 + node.offsetHeight;
+  // Add some tolerance, because Pinkie sprite is very wide.
+  b.x1 += 32; b.x2 -= 32;
+  return b;
+}
+
+function intersectsWith(me, target) {
+  var b1 = bounds(me), b2 = bounds(target);
+  return !(b2.x1 > b1.x2 || b2.x2 < b1.x1 ||
+           b2.y1 > b1.y2 || b2.y2 < b1.y1);
+}
+
+function intersects(me, target) {
+  me = document.body.querySelectorAll('.' + me)[0];
+  target = document.body.querySelectorAll('.' + target)[0];
+  if (!(me && target)) {
+    return false;
+  }
+  return intersectsWith(me, target);
+}
+
 function tickChan() {
   var ch = chan(csp.buffers.sliding(1));
   var t = 0;
@@ -134,6 +162,46 @@ function pinkieChan() {
   return ch;
 }
 
+function coinChan() {
+  var ch = chan();
+  var tickCh = tickChan();
+  go(function*() {
+    var initialCoin = {
+      id: 'coin',
+      x: 1600, y: 40,
+      vx: -6, vy: 0
+    };
+    var c = initialCoin;
+    var p;
+    var open = true;
+    while(open) {
+      yield take(tickCh);
+      c = velocity(c);
+
+      // If coin is going upwards, go faster and faster
+      if (c.vy < 0) {
+        c.vy = c.vy *2;
+      }
+
+      // If Pinkie touches the coin, ding it!
+      if (c.vy === 0 && intersects('coin', 'pinkie')) {
+        new Audio(require('./sfx/coin.mp3')).play();
+        c.vx = 0; c.vy = -1;
+      }
+
+      // If coin is offscreen, reset it
+      c = onscreen(c) ? c : initialCoin;
+
+      open = yield put(ch, c);
+
+      if (!open) {
+        tickCh.close();
+      }
+    }
+  });
+  return ch;
+}
+
 function makeElement(node) {
   return React.DOM.div({
     key: node.id,
@@ -159,13 +227,15 @@ function renderScene(state) {
 function main() {
   var groundCh = groundChan();
   var pinkieCh = pinkieChan();
+  var coinCh = coinChan();
   var timeoutCh = timeout(100000);
   go(function*() {
     var stop = false;
     var state = {};
     while(!stop) {
-      var v = yield alts([timeoutCh, groundCh, pinkieCh]);
+      var v = yield alts([timeoutCh, groundCh, pinkieCh, coinCh]);
       if (v.channel === timeoutCh) {
+        coinCh.close();
         pinkieCh.close();
         groundCh.close();
         stop = true;
@@ -176,6 +246,9 @@ function main() {
         }
         else if (v.channel === pinkieCh) {
           state.pinkie = v.value;
+        }
+        else if (v.channel === coinCh) {
+          state.coin = v.value;
         }
         renderScene(state);
       }
